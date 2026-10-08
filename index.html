@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>더샵동천포레스트 계약 관리 시스템</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Inter Font -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: #f8fafc;
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            height: 6px;
+            width: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+    </style>
+</head>
+<body class="text-slate-800 min-h-screen flex flex-col antialiased">
+
+    <!-- Navigation / Header -->
+    <header class="bg-slate-900 text-white sticky top-0 z-30 shadow-md">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <div class="flex items-center space-x-3">
+                    <div class="p-2 bg-indigo-600 rounded-lg text-white">
+                        <i data-lucide="building-2" class="w-6 h-6"></i>
+                    </div>
+                    <div>
+                        <h1 class="font-bold text-lg leading-none">더샵동천포레스트</h1>
+                        <p class="text-xs text-slate-400 mt-1">계약 관리 및 만료 알림 대시보드</p>
+                    </div>
+                </div>
+                <div class="flex items-center space-x-3 text-xs sm:text-sm">
+                    <span id="current-date-badge" class="px-3 py-1 bg-slate-800 border border-slate-700 rounded-full text-slate-300 flex items-center gap-1.5">
+                        <i data-lucide="calendar" class="w-4 h-4 text-indigo-400"></i>
+                        <span id="today-string">기준일: 2026-10-08</span>
+                    </span>
+                    <button onclick="resetToInitialData()" title="초기 데이터로 복원" class="p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-colors">
+                        <i data-lucide="rotate-ccw" class="w-4 h-4"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- How-to Preview Guide Banner -->
+    <div class="bg-indigo-900 text-indigo-100 border-b border-indigo-800 px-4 py-3">
+        <div class="max-w-7xl mx-auto flex flex-col md:flex-row items-start md:items-center justify-between gap-3 text-xs sm:text-sm">
+            <div class="flex items-center gap-2">
+                <span class="px-2 py-0.5 bg-indigo-500 text-white font-bold rounded text-xs uppercase">미리보기 안내</span>
+                <span>💡 오른쪽 화면 상단의 <strong>[Preview]</strong> 버튼을 누르면 이 화면을 실시간으로 조작 및 테스트할 수 있습니다.</span>
+            </div>
+            <div class="flex items-center gap-4 text-indigo-300 text-xs">
+                <span class="flex items-center gap-1"><i data-lucide="check-circle" class="w-3.5 h-3.5 text-indigo-400"></i> 구글 캘린더 연동</span>
+                <span class="flex items-center gap-1"><i data-lucide="check-circle" class="w-3.5 h-3.5 text-indigo-400"></i> 엑셀 CSV 다운로드</span>
+                <span class="flex items-center gap-1"><i data-lucide="check-circle" class="w-3.5 h-3.5 text-indigo-400"></i> D-Day 자동 계산</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content Container -->
+    <main class="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+
+        <!-- Summary Cards Grid -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <!-- Total Contracts -->
+            <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
+                <div>
+                    <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider">전체 계약 건수</p>
+                    <h3 id="stat-total" class="text-2xl font-bold text-slate-900 mt-1">0</h3>
+                </div>
+                <div class="p-3 bg-blue-50 text-blue-600 rounded-xl">
+                    <i data-lucide="file-text" class="w-6 h-6"></i>
+                </div>
+            </div>
+
+            <!-- Urgent Expiring (< 30 days) -->
+            <div class="bg-white p-5 rounded-xl border border-rose-200 bg-rose-50/20 shadow-sm flex items-center justify-between">
+                <div>
+                    <p class="text-xs font-semibold text-rose-600 uppercase tracking-wider">만료 임박 (30일 이내)</p>
+                    <h3 id="stat-urgent" class="text-2xl font-bold text-rose-600 mt-1">0</h3>
+                </div>
+                <div class="p-3 bg-rose-100 text-rose-600 rounded-xl">
+                    <i data-lucide="alert-triangle" class="w-6 h-6"></i>
+                </div>
+            </div>
+
+            <!-- Warning Expiring (30~60 days) -->
+            <div class="bg-white p-5 rounded-xl border border-amber-200 bg-amber-50/20 shadow-sm flex items-center justify-between">
+                <div>
+                    <p class="text-xs font-semibold text-amber-600 uppercase tracking-wider">만료 예고 (60일 이내)</p>
+                    <h3 id="stat-warning" class="text-2xl font-bold text-amber-600 mt-1">0</h3>
+                </div>
+                <div class="p-3 bg-amber-100 text-amber-600 rounded-xl">
+                    <i data-lucide="clock" class="w-6 h-6"></i>
+                </div>
+            </div>
+
+            <!-- Expired -->
+            <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
+                <div>
+                    <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider">만료 완료</p>
+                    <h3 id="stat-expired" class="text-2xl font-bold text-slate-600 mt-1">0</h3>
+                </div>
+                <div class="p-3 bg-slate-100 text-slate-500 rounded-xl">
+                    <i data-lucide="file-check-2" class="w-6 h-6"></i>
+                </div>
+            </div>
+        </div>
+
+        <!-- Controls & Filters Section -->
+        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <!-- Search & Filters Left Group -->
+            <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 flex-grow">
+                <!-- Search Input -->
+                <div class="relative min-w-[240px] flex-grow sm:flex-grow-0">
+                    <i data-lucide="search" class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                    <input type="text" id="search-input" placeholder="계약명 또는 업체명 검색..." 
+                           class="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all">
+                </div>
+
+                <!-- Status Filter -->
+                <select id="status-filter" class="bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    <option value="all">상태 전체 보기</option>
+                    <option value="urgent">만료 임박 (30일 이내)</option>
+                    <option value="warning">만료 예정 (60일 이내)</option>
+                    <option value="active">정상 진행 중</option>
+                    <option value="expired">만료됨</option>
+                </select>
+
+                <!-- Sort Filter -->
+                <select id="sort-select" class="bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    <option value="expiry-asc">만료일 임박순</option>
+                    <option value="expiry-desc">만료일 나중순</option>
+                    <option value="title-asc">계약명 가나다순</option>
+                </select>
+            </div>
+
+            <!-- Add Contract & Export CSV Group -->
+            <div class="flex items-center gap-2">
+                <button onclick="exportToCSV()" class="px-3.5 py-2 border border-slate-300 hover:bg-slate-50 text-slate-700 font-medium text-sm rounded-lg flex items-center justify-center gap-1.5 transition-colors">
+                    <i data-lucide="download" class="w-4 h-4 text-emerald-600"></i>
+                    CSV 엑셀 저장
+                </button>
+                <button onclick="openModal()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-medium text-sm rounded-lg flex items-center justify-center gap-2 shadow-sm transition-colors">
+                    <i data-lucide="plus" class="w-4 h-4"></i>
+                    신규 계약 등록
+                </button>
+            </div>
+        </div>
+
+        <!-- Contract List Table -->
+        <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+            <div class="overflow-x-auto custom-scrollbar">
+                <table class="w-full text-left text-sm border-collapse">
+                    <thead class="bg-slate-50 text-slate-600 font-semibold border-b border-slate-200">
+                        <tr>
+                            <th class="py-3.5 px-4">계약 상태</th>
+                            <th class="py-3.5 px-4">계약명</th>
+                            <th class="py-3.5 px-4">업체명</th>
+                            <th class="py-3.5 px-4">계약 기간</th>
+                            <th class="py-3.5 px-4">계약 금액</th>
+                            <th class="py-3.5 px-4 text-center">알림 및 관리</th>
+                        </tr>
+                    </thead>
+                    <tbody id="contract-tbody" class="divide-y divide-slate-100 text-slate-700">
+                        <!-- Dynamic content filled by JavaScript -->
+                    </tbody>
+                </table>
+            </div>
+            
+            <!-- Empty State Container -->
+            <div id="empty-state" class="hidden py-12 text-center text-slate-400">
+                <i data-lucide="file-x" class="w-12 h-12 mx-auto stroke-1 mb-2"></i>
+                <p class="text-base font-medium">검색 조건에 일치하는 계약 내역이 없습니다.</p>
+                <p class="text-xs text-slate-400 mt-1">검색어를 바꾸거나 필터 옵션을 확인해 보세요.</p>
+            </div>
+        </div>
+    </main>
+
+    <!-- Add / Edit Modal -->
+    <div id="contract-modal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-xl shadow-xl w-full max-w-lg overflow-hidden transform transition-all">
+            <div class="px-6 py-4 bg-slate-50 border-b border-slate-200 flex justify-between items-center">
+                <h3 id="modal-title" class="font-bold text-slate-800 text-base">신규 계약 추가</h3>
+                <button onclick="closeModal()" class="text-slate-400 hover:text-slate-600 p-1 rounded-lg">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <form id="contract-form" onsubmit="handleFormSubmit(event)" class="p-6 space-y-4">
+                <input type="hidden" id="modal-contract-id">
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 mb-1">계약명 *</label>
+                    <input type="text" id="input-title" required placeholder="예: 승강기 유지보수" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 mb-1">업체명 *</label>
+                    <input type="text" id="input-vendor" required placeholder="예: 현대엘리베이터" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1">계약 시작일 *</label>
+                        <input type="date" id="input-start-date" required class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1">계약 만료일 *</label>
+                        <input type="date" id="input-end-date" required class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 mb-1">계약 금액 / 주기 *</label>
+                    <input type="text" id="input-cost" required placeholder="예: 973,500원 / 월" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 mb-1">비고 / 참고사항</label>
+                    <textarea id="input-notes" rows="2" placeholder="기타 특이사항 및 메모" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"></textarea>
+                </div>
+
+                <div class="pt-4 flex justify-end gap-2 border-t border-slate-100">
+                    <button type="button" onclick="closeModal()" class="px-4 py-2 border border-slate-300 rounded-lg text-slate-600 hover:bg-slate-50 text-sm font-medium transition-colors">취소</button>
+                    <button type="submit" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium transition-colors shadow-sm">저장하기</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        const DEFAULT_CONTRACTS = [
+            { id: "c1", title: "위탁관리수수료", vendor: "(주)신화시스템즈", startDate: "2025-03-01", endDate: "2028-02-28", cost: "255,100원 / 월", notes: "" },
+            { id: "c2", title: "경비용역", vendor: "(주)창조보완", startDate: "2026-01-01", endDate: "2026-12-31", cost: "7,439,240원 / 월", notes: "" },
+            { id: "c3", title: "청소용역", vendor: "(주)정광", startDate: "2026-01-01", endDate: "2026-12-31", cost: "12,620,750원 / 월", notes: "" },
+            { id: "c4", title: "어린이집", vendor: "수지발도르프", startDate: "2022-09-01", endDate: "2027-08-31", cost: "31,950,000원 / 5년", notes: "" },
+            { id: "c5", title: "보험료", vendor: "메리츠화재보험 외", startDate: "2026-08-06", endDate: "2027-08-06", cost: "9,259,300원 / 1년", notes: "" },
+            { id: "c6", title: "승강기 유지보수비", vendor: "현대엘리베이터, (주)현대개발공사", startDate: "2026-02-01", endDate: "2028-01-31", cost: "973,500원 / 월", notes: "" },
+            { id: "c7", title: "소독용역/수목소독", vendor: "삼우서비스(주)", startDate: "2026-04-01", endDate: "2027-03-31", cost: "3,000,000원 / 월", notes: "" },
+            { id: "c8", title: "전산용역", vendor: "(주)이지데이타", startDate: "2026-09-01", endDate: "2027-08-31", cost: "169,000원 / 월", notes: "" },
+            { id: "c9", title: "재활용품", vendor: "(주)산성자원", startDate: "2026-04-01", endDate: "2027-03-31", cost: "435,600원 / 월", notes: "" },
+            { id: "c10", title: "복사기 렌탈료", vendor: "오피스프린텍", startDate: "2025-03-01", endDate: "2027-02-28", cost: "143,000원 / 월", notes: "" },
+            { id: "c11", title: "저수조 청소", vendor: "(주)공간건설", startDate: "2026-04-01", endDate: "2027-03-31", cost: "1,210,000원 / 년", notes: "상/하반기 2회" },
+            { id: "c12", title: "세무주치의", vendor: "기웅정보통신(주)", startDate: "2026-05-01", endDate: "2027-04-30", cost: "605,000원 / 년", notes: "" },
+            { id: "c13", title: "소방시설유지관리", vendor: "(주)대륙이엔지", startDate: "2026-04-01", endDate: "2027-03-31", cost: "3,564,000원 / 년", notes: "" },
+            { id: "c14", title: "기계설비 성능점검 및 유지관리", vendor: "한국기계설비성능검사원(주)", startDate: "2026-02-01", endDate: "2026-04-17", cost: "1,540,000원 / 년", notes: "" },
+            { id: "c15", title: "기계설비 자동제어 시스템", vendor: "지멘스", startDate: "2026-03-01", endDate: "2027-02-28", cost: "3,520,000원 / 년", notes: "" },
+            { id: "c16", title: "전기안전관리자 직무점검", vendor: "(주)우경이엠씨", startDate: "2025-10-01", endDate: "2026-09-30", cost: "1,320,000원 / 년", notes: "" },
+            { id: "c17", title: "시설물 정기안전점검", vendor: "(주)에이앤비", startDate: "2026-03-01", endDate: "2027-02-28", cost: "1,760,000원 / 년", notes: "" },
+            { id: "c18", title: "엘리베이터 TV 설치", vendor: "포커스미디어코리아", startDate: "2026-03-23", endDate: "2028-03-22", cost: "2,800,000원 / 2년", notes: "" },
+            { id: "c19", title: "회계감사", vendor: "안세회계법인", startDate: "2026-06-24", endDate: "2027-06-23", cost: "1,100,000원 / 년", notes: "1회 감사" },
+            { id: "c20", title: "정수기 렌탈", vendor: "코웨이", startDate: "2025-12-14", endDate: "2028-12-13", cost: "87,860원 / 월", notes: "" },
+            { id: "c21", title: "공기청정기 렌탈", vendor: "코웨이", startDate: "2025-01-24", endDate: "2030-01-23", cost: "31,250원 / 월", notes: "" },
+            { id: "c22", title: "주차관제시스템", vendor: "아마노코리아(주)", startDate: "2024-09-13", endDate: "2027-09-12", cost: "33,242,000원 / 3년", notes: "" }
+        ];
+
+        let contracts = [];
+        const TODAY = new Date("2026-10-08");
+
+        window.addEventListener('DOMContentLoaded', () => {
+            loadContracts();
+            setupEventListeners();
+            render();
+            lucide.createIcons();
+        });
+
+        function loadContracts() {
+            const stored = localStorage.getItem('thesharp_contracts');
+            if (stored) {
+                try {
+                    contracts = JSON.parse(stored);
+                } catch(e) {
+                    contracts = [...DEFAULT_CONTRACTS];
+                }
+            } else {
+                contracts = [...DEFAULT_CONTRACTS];
+                saveContracts();
+            }
+        }
+
+        function saveContracts() {
+            localStorage.setItem('thesharp_contracts', JSON.stringify(contracts));
+        }
+
+        function resetToInitialData() {
+            if (confirm("모든 계약 데이터를 초기 데이터 세트로 되돌리시겠습니까?")) {
+                contracts = [...DEFAULT_CONTRACTS];
+                saveContracts();
+                render();
+            }
+        }
+
+        function setupEventListeners() {
+            document.getElementById('search-input').addEventListener('input', render);
+            document.getElementById('status-filter').addEventListener('change', render);
+            document.getElementById('sort-select').addEventListener('change', render);
+        }
+
+        function calculateDDay(endDateStr) {
+            const endDate = new Date(endDateStr);
+            const target = new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate());
+            const current = new Date(TODAY.getFullYear(), TODAY.getMonth(), TODAY.getDate());
+            
+            const diffTime = target - current;
+            return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        }
+
+        function getContractStatus(dDay) {
+            if (dDay < 0) return 'expired';
+            if (dDay <= 30) return 'urgent';
+            if (dDay <= 60) return 'warning';
+            return 'active';
+        }
+
+        function render() {
+            const tbody = document.getElementById('contract-tbody');
+            const emptyState = document.getElementById('empty-state');
+            const searchValue = document.getElementById('search-input').value.toLowerCase().trim();
+            const statusFilter = document.getElementById('status-filter').value;
+            const sortBy = document.getElementById('sort-select').value;
+
+            let totalCount = contracts.length;
+            let urgentCount = 0;
+            let warningCount = 0;
+            let expiredCount = 0;
+
+            contracts.forEach(c => {
+                const dDay = calculateDDay(c.endDate);
+                const status = getContractStatus(dDay);
+                if (status === 'urgent') urgentCount++;
+                if (status === 'warning') warningCount++;
+                if (status === 'expired') expiredCount++;
+            });
+
+            document.getElementById('stat-total').textContent = totalCount;
+            document.getElementById('stat-urgent').textContent = urgentCount;
+            document.getElementById('stat-warning').textContent = warningCount;
+            document.getElementById('stat-expired').textContent = expiredCount;
+
+            let filtered = contracts.filter(item => {
+                const matchesSearch = item.title.toLowerCase().includes(searchValue) || 
+                                      item.vendor.toLowerCase().includes(searchValue);
+                const dDay = calculateDDay(item.endDate);
+                const status = getContractStatus(dDay);
+
+                let matchesStatus = true;
+                if (statusFilter !== 'all') {
+                    matchesStatus = (status === statusFilter);
+                }
+                return matchesSearch && matchesStatus;
+            });
+
+            filtered.sort((a, b) => {
+                if (sortBy === 'expiry-asc') {
+                    return new Date(a.endDate) - new Date(b.endDate);
+                } else if (sortBy === 'expiry-desc') {
+                    return new Date(b.endDate) - new Date(a.endDate);
+                } else if (sortBy === 'title-asc') {
+                    return a.title.localeCompare(b.title, 'ko');
+                }
+                return 0;
+            });
+
+            tbody.innerHTML = '';
+
+            if (filtered.length === 0) {
+                emptyState.classList.remove('hidden');
+            } else {
+                emptyState.classList.add('hidden');
+
+                filtered.forEach(contract => {
+                    const dDay = calculateDDay(contract.endDate);
+                    const status = getContractStatus(dDay);
+
+                    const tr = document.createElement('tr');
+                    tr.className = "hover:bg-slate-50/80 transition-colors";
+
+                    let badgeHTML = '';
+                    if (status === 'expired') {
+                        badgeHTML = `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-600 border border-slate-200">
+                            <span class="w-1.5 h-1.5 rounded-full bg-slate-400"></span> 만료됨 (D+${Math.abs(dDay)})
+                        </span>`;
+                    } else if (status === 'urgent') {
+                        badgeHTML = `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-rose-100 text-rose-700 border border-rose-200 animate-pulse">
+                            <span class="w-1.5 h-1.5 rounded-full bg-rose-600"></span> D-${dDay} (만료임박)
+                        </span>`;
+                    } else if (status === 'warning') {
+                        badgeHTML = `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-100 text-amber-700 border border-amber-200">
+                            <span class="w-1.5 h-1.5 rounded-full bg-amber-600"></span> D-${dDay} (만료예고)
+                        </span>`;
+                    } else {
+                        badgeHTML = `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-700 border border-emerald-200">
+                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-600"></span> D-${dDay} (진행중)
+                        </span>`;
+                    }
+
+                    tr.innerHTML = `
+                        <td class="py-3.5 px-4 whitespace-nowrap">${badgeHTML}</td>
+                        <td class="py-3.5 px-4 font-semibold text-slate-800">
+                            ${escapeHTML(contract.title)}
+                            ${contract.notes ? `<p class="text-xs font-normal text-slate-400 mt-0.5">${escapeHTML(contract.notes)}</p>` : ''}
+                        </td>
+                        <td class="py-3.5 px-4 text-slate-600">${escapeHTML(contract.vendor)}</td>
+                        <td class="py-3.5 px-4 text-slate-600 whitespace-nowrap text-xs">
+                            <div class="font-medium text-slate-700">${contract.startDate} ~ ${contract.endDate}</div>
+                        </td>
+                        <td class="py-3.5 px-4 font-medium text-slate-800 whitespace-nowrap">${escapeHTML(contract.cost)}</td>
+                        <td class="py-3.5 px-4 text-center whitespace-nowrap">
+                            <div class="flex items-center justify-center space-x-1">
+                                <button onclick="addToGoogleCalendar('${contract.id}')" title="만료 30일 전 구글 캘린더 알림 추가" 
+                                        class="px-2.5 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-600 border border-blue-200 rounded-lg text-xs font-medium inline-flex items-center gap-1 transition-colors">
+                                    <i data-lucide="calendar-plus" class="w-3.5 h-3.5"></i>
+                                    캘린더 등록
+                                </button>
+                                <button onclick="openModal('${contract.id}')" title="수정" class="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-slate-100 rounded-lg transition-colors">
+                                    <i data-lucide="edit-3" class="w-4 h-4"></i>
+                                </button>
+                                <button onclick="deleteContract('${contract.id}')" title="삭제" class="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-slate-100 rounded-lg transition-colors">
+                                    <i data-lucide="trash-2" class="w-4 h-4"></i>
+                                </button>
+                            </div>
+                        </td>
+                    `;
+
+                    tbody.appendChild(tr);
+                });
+            }
+
+            lucide.createIcons();
+        }
+
+        function addToGoogleCalendar(contractId) {
+            const contract = contracts.find(c => c.id === contractId);
+            if (!contract) return;
+
+            const expiryDate = new Date(contract.endDate);
+            const alertDate = new Date(expiryDate);
+            alertDate.setDate(alertDate.getDate() - 30);
+
+            const formatDateForGCal = (date) => {
+                const year = date.getFullYear();
+                const month = String(date.getMonth() + 1).padStart(2, '0');
+                const day = String(date.getDate()).padStart(2, '0');
+                return `${year}${month}${day}`;
+            };
+
+            const startDateStr = formatDateForGCal(alertDate);
+            const endDateRef = new Date(alertDate);
+            endDateRef.setDate(endDateRef.getDate() + 1);
+            const endDateStr = formatDateForGCal(endDateRef);
+
+            const title = encodeURIComponent(`[재계약 검토] ${contract.title} - ${contract.vendor}`);
+            const details = encodeURIComponent(
+                `더샵동천포레스트 계약 만료 알림\n` +
+                `- 계약명: ${contract.title}\n` +
+                `- 업체명: ${contract.vendor}\n` +
+                `- 계약 만료일: ${contract.endDate}\n` +
+                `- 계약 금액: ${contract.cost}\n` +
+                `※ 계약 만료 30일 전입니다. 재계약 여부 검토 및 입찰 준비를 진행하세요.`
+            );
+            const location = encodeURIComponent("더샵동천포레스트 관리사무소");
+
+            const gcalUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&dates=${startDateStr}/${endDateStr}&details=${details}&location=${location}`;
+            window.open(gcalUrl, '_blank');
+        }
+
+        function exportToCSV() {
+            let csvContent = "data:text/csv;charset=utf-8,\uFEFF";
+            csvContent += "계약명,업체명,계약시작일,계약만료일,계약금액,비고\n";
+
+            contracts.forEach(c => {
+                const row = [
+                    `"${c.title}"`,
+                    `"${c.vendor}"`,
+                    `"${c.startDate}"`,
+                    `"${c.endDate}"`,
+                    `"${c.cost}"`,
+                    `"${c.notes || ''}"`
+                ].join(",");
+                csvContent += row + "\n";
+            });
+
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", "더샵동천포레스트_계약목록.csv");
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        function openModal(contractId = null) {
+            const modal = document.getElementById('contract-modal');
+            const form = document.getElementById('contract-form');
+            const titleEl = document.getElementById('modal-title');
+
+            form.reset();
+
+            if (contractId) {
+                const item = contracts.find(c => c.id === contractId);
+                if (item) {
+                    titleEl.textContent = "계약 정보 수정";
+                    document.getElementById('modal-contract-id').value = item.id;
+                    document.getElementById('input-title').value = item.title;
+                    document.getElementById('input-vendor').value = item.vendor;
+                    document.getElementById('input-start-date').value = item.startDate;
+                    document.getElementById('input-end-date').value = item.endDate;
+                    document.getElementById('input-cost').value = item.cost;
+                    document.getElementById('input-notes').value = item.notes || '';
+                }
+            } else {
+                titleEl.textContent = "신규 계약 추가";
+                document.getElementById('modal-contract-id').value = '';
+            }
+
+            modal.classList.remove('hidden');
+        }
+
+        function closeModal() {
+            document.getElementById('contract-modal').classList.add('hidden');
+        }
+
+        function handleFormSubmit(e) {
+            e.preventDefault();
+
+            const id = document.getElementById('modal-contract-id').value;
+            const title = document.getElementById('input-title').value.trim();
+            const vendor = document.getElementById('input-vendor').value.trim();
+            const startDate = document.getElementById('input-start-date').value;
+            const endDate = document.getElementById('input-end-date').value;
+            const cost = document.getElementById('input-cost').value.trim();
+            const notes = document.getElementById('input-notes').value.trim();
+
+            if (id) {
+                const index = contracts.findIndex(c => c.id === id);
+                if (index !== -1) {
+                    contracts[index] = { id, title, vendor, startDate, endDate, cost, notes };
+                }
+            } else {
+                const newId = 'c_' + Date.now();
+                contracts.push({ id: newId, title, vendor, startDate, endDate, cost, notes });
+            }
+
+            saveContracts();
+            render();
+            closeModal();
+        }
+
+        function deleteContract(id) {
+            const item = contracts.find(c => c.id === id);
+            if (item && confirm(`'${item.title}' 계약 내역을 삭제하시겠습니까?`)) {
+                contracts = contracts.filter(c => c.id !== id);
+                saveContracts();
+                render();
+            }
+        }
+
+        function escapeHTML(str) {
+            if (!str) return '';
+            return str.replace(/[&<>'"]/g, 
+                tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag)
+            );
+        }
+    </script>
+</body>
+</html>
